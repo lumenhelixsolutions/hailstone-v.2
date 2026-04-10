@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+type: software
+title: "Quaternionic-C.O.R.E. Framework for the Collatz Map"
+abstract: >
+  A reversible algebraic embedding of the Collatz map into the complex plane,
+  with an exact norm growth theorem, a faithful split embedding, a faithfulness
+  characterisation, and an affine cycle reduction via Baker's theorem.
+  Includes empirical verification to n ≤ 10^9.
+authors:
+  - family-names: Phillips
+    given-names: Christopher Gordon
+    alias: Raziel Ali
+    affiliation: LumenHelix Solutions
+    email: chris@oiq.to
+    website: https://lumenhelix.com
+version: "2.0"
+date-released: "2026-03-22"
+license: MIT
+repository-code: https://github.com/lumenhelix/collatz-qcore
+keywords:
+  - Collatz conjecture
+  - quaternionic dynamics
+  - reversible computing
+  - algebraic number theory
+  - Baker's theorem
+  - norm obstruction
+  - CORE architecture
+preferred-citation:
+  type: unpublished
+  title: >
+    The Quaternionic-C.O.R.E. Framework for the Collatz Map:
+    Algebraic Structure, Norm Obstruction, and Empirical Verification to n ≤ 10^9
+  authors:
+    - family-names: Phillips
+      given-names: Christopher Gordon
+      affiliation: LumenHelix Solutions
+  year: 2026
+  notes: "Preprint. arXiv:XXXX.XXXXX [math.NT]"
