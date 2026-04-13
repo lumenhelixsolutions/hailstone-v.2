@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useRokuPortal } from './hooks/useRokuPortal'
 import { DeviceList } from './components/DeviceList'
 import { StatusBanner } from './components/StatusBanner'
+import { DiagnosticsPanel } from './components/DiagnosticsPanel'
 
 type Page = 'dashboard' | 'devices' | 'apps'
 
@@ -21,6 +22,8 @@ export default function App() {
     activityLog,
     deviceCount,
     refreshing,
+    diagnostics,
+    diagnosticsLoading,
     selectDevice,
     startScan,
     refreshSelected,
@@ -126,6 +129,8 @@ export default function App() {
               activityLog={activityLog}
               scanning={scanning}
               scanProgress={scanProgress}
+              diagnostics={diagnostics}
+              diagnosticsLoading={diagnosticsLoading}
             />
           )}
           {page === 'devices' && (
@@ -154,6 +159,8 @@ interface DashboardPageProps {
   activityLog: string[]
   scanning: boolean
   scanProgress: ReturnType<typeof useRokuPortal>['scanProgress']
+  diagnostics: ReturnType<typeof useRokuPortal>['diagnostics']
+  diagnosticsLoading: ReturnType<typeof useRokuPortal>['diagnosticsLoading']
 }
 
 function DashboardPage({
@@ -164,6 +171,8 @@ function DashboardPage({
   activityLog,
   scanning,
   scanProgress,
+  diagnostics,
+  diagnosticsLoading,
 }: DashboardPageProps) {
   return (
     <div>
@@ -186,6 +195,8 @@ function DashboardPage({
           note="Port 8060, XML validation"
         />
       </div>
+
+      <DiagnosticsPanel diagnostics={diagnostics} loading={diagnosticsLoading} />
 
       <StatusBanner device={selectedDevice} onRefresh={onRefresh} refreshing={refreshing} />
 

@@ -126,3 +126,99 @@ export function detectSubnet(): string {
 export async function refreshDevice(device: RokuDevice): Promise<RokuDevice | null> {
   return probeDevice(device.ip)
 }
+
+// ── Diagnostics ───────────────────────────────────────────────────────────────
+
+export interface NetworkDiagnostics {
+  /** The /24 subnet prefix that will be scanned. */
+  subnet: string
+  /** True when running in a browser context (not a native Tauri shell). */
+  isBrowserContext: boolean
+  /**
+   * True when browser CORS policy is likely to block ECP fetches.
+   *
+   * Roku ECP endpoints do not emit Access-Control-Allow-Origin headers, so any
+   * page served from an http(s):// origin will have its cross-origin requests
+   * blocked by the browser.  Only a native Tauri webview (which uses a custom
+   * protocol) or a localhost dev-proxy can bypass this.
+   */
+  corsLikelyBlocked: boolean
+  /**
+   * Result of a test probe against the gateway (.1) of the detected subnet.
+   * 'reachable'  – the host answered and returned Roku ECP XML.
+   * 'cors-error' – the fetch was blocked by CORS (TypeError with no status).
+   * 'unreachable'– connection refused / timed out.
+   * 'pending'    – the check has not completed yet.
+   */
+  gatewayProbeStatus: 'reachable' | 'cors-error' | 'unreachable' | 'pending'
+  /** Human-readable explanation of the current environment / limitations. */
+  summary: string
+}
+
+/**
+ * Run a quick environment and network self-check and return a
+ * NetworkDiagnostics report.  This is the "Rust diagnostic bridge" for the
+ * browser/Vite build — it surfaces the same information a native Tauri command
+ * would expose, using only browser APIs.
+ */
+export async function runDiagnostics(): Promise<NetworkDiagnostics> {
+  const subnet = detectSubnet()
+
+  // Is the page served from a real http(s) origin?  (vs tauri:// or file://)
+  const origin = typeof window !== 'undefined' ? window.location.protocol : 'tauri:'
+  const isBrowserContext = origin === 'http:' || origin === 'https:'
+
+  // CORS blocks cross-origin requests from http(s) pages to Roku ECP.
+  // A tauri:// or file:// origin behaves like a native app and is not blocked.
+  const corsLikelyBlocked = isBrowserContext
+
+  // Quick probe of the subnet gateway to characterise reachability.
+  let gatewayProbeStatus: NetworkDiagnostics['gatewayProbeStatus'] = 'pending'
+  try {
+    const res = await fetch(ecpUrl(`${subnet}.1`, '/query/device-info'), {
+      signal: AbortSignal.timeout(2000),
+    })
+    // If we got a response at all, CORS is NOT blocking (e.g. Vite proxy is
+    // in place).  Check whether the response looks like Roku ECP.
+    const xml = await res.text()
+    const looksLikeEcp = xml.includes('device-info') || xml.includes('friendly-device-name')
+    gatewayProbeStatus = res.ok && looksLikeEcp ? 'reachable' : 'unreachable'
+  } catch (err) {
+    // A TypeError with message "Failed to fetch" (no response at all) is the
+    // browser CORS fingerprint.  A network error with a status-like message
+    // indicates plain unreachability.
+    const msg = err instanceof Error ? err.message : String(err)
+    if (
+      msg.toLowerCase().includes('failed to fetch') ||
+      msg.toLowerCase().includes('load failed') ||
+      msg.toLowerCase().includes('networkerror')
+    ) {
+      gatewayProbeStatus = corsLikelyBlocked ? 'cors-error' : 'unreachable'
+    } else {
+      gatewayProbeStatus = 'unreachable'
+    }
+  }
+
+  let summary: string
+  if (gatewayProbeStatus === 'cors-error' || corsLikelyBlocked) {
+    summary =
+      'Running as a web app (browser context). ' +
+      'Browser CORS policy blocks cross-origin fetches to Roku ECP (port 8060). ' +
+      'Device discovery will not work until the app is built as a native Tauri desktop app ' +
+      'or a local ECP proxy is configured in vite.config.ts.'
+  } else if (gatewayProbeStatus === 'reachable') {
+    summary = `ECP reachable on ${subnet}.x — discovery should work.`
+  } else {
+    summary =
+      `Subnet ${subnet}.0/24 is unreachable or no Roku devices responded on port 8060. ` +
+      'Ensure the Roku device is powered on and on the same network.'
+  }
+
+  return {
+    subnet,
+    isBrowserContext,
+    corsLikelyBlocked,
+    gatewayProbeStatus,
+    summary,
+  }
+}
