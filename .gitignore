@@ -1,0 +1,11 @@
+# Dependencies
+desktop/node_modules/
+node_modules/
+
+# Build output
+desktop/dist/
+
+# Editor / OS
+.DS_Store
+*.swp
+.vscode/
