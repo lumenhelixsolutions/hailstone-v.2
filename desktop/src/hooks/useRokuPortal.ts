@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RokuDevice, ScanProgress, ScanStatus } from '../types/roku'
-import { detectSubnet, refreshDevice, scanSubnet } from '../lib/roku'
+import type { NetworkDiagnostics } from '../lib/roku'
+import { detectSubnet, refreshDevice, runDiagnostics, scanSubnet } from '../lib/roku'
 
 export interface RokuPortalState {
   devices: RokuDevice[]
@@ -10,6 +11,8 @@ export interface RokuPortalState {
   activityLog: string[]
   deviceCount: number
   refreshing: boolean
+  diagnostics: NetworkDiagnostics | null
+  diagnosticsLoading: boolean
   selectDevice: (device: RokuDevice) => void
   startScan: () => Promise<void>
   refreshSelected: () => Promise<void>
@@ -30,6 +33,8 @@ export function useRokuPortal(): RokuPortalState {
   const [activityLog, setActivityLog] = useState<string[]>([
     `${timestamp()} — Portal started. Click "Scan Network" to discover Roku devices.`,
   ])
+  const [diagnostics, setDiagnostics] = useState<NetworkDiagnostics | null>(null)
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(true)
 
   /** Tracks UDNs already present in state to prevent duplicates. */
   const knownUdns = useRef<Set<string>>(new Set())
@@ -38,6 +43,14 @@ export function useRokuPortal(): RokuPortalState {
 
   const addLog = useCallback((msg: string) => {
     setActivityLog((prev) => [`${timestamp()} — ${msg}`, ...prev].slice(0, MAX_LOG))
+  }, [])
+
+  // Run diagnostics once on mount to detect CORS / environment issues.
+  useEffect(() => {
+    setDiagnosticsLoading(true)
+    runDiagnostics()
+      .then(setDiagnostics)
+      .finally(() => setDiagnosticsLoading(false))
   }, [])
 
   const selectDevice = useCallback((device: RokuDevice) => {
@@ -131,6 +144,8 @@ export function useRokuPortal(): RokuPortalState {
     activityLog,
     deviceCount: devices.length,
     refreshing,
+    diagnostics,
+    diagnosticsLoading,
     selectDevice,
     startScan,
     refreshSelected,
